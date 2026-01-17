@@ -1,0 +1,24 @@
+# Gradle
+.gradle/
+build/
+app/build/
+libs/*/build/
+
+# Local configuration file (sdk.dir, etc.)
+local.properties
+
+# Android Studio / IntelliJ
+.idea/
+.settings/
+.project
+.classpath
+*.iml
+*.ipr
+*.iws
+.DS_Store
+
+# Native C/C++
+.cxx/
+
+# Captures
+captures/

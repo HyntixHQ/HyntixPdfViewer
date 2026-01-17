@@ -1,0 +1,1 @@
+-keep class com.hyntix.pdf.viewer.** { *; }

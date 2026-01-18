@@ -74,7 +74,7 @@ internal class CacheManager(private val bitmapPool: com.hyntix.pdf.viewer.cache.
             found = find(passiveCache, fakePart)
             if (found != null) {
                 passiveCache.remove(found)
-                found!!.cacheOrder = toOrder
+                found.cacheOrder = toOrder
                 activeCache.offer(found)
                 return true
             }

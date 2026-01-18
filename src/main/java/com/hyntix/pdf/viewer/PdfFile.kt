@@ -363,39 +363,32 @@ class PdfFile(
     fun getPageText(pageIndex: Int): String {
         synchronized(lock) {
             val docPage = documentPage(pageIndex)
-            android.util.Log.d("ReflowDebug", "getPageText: pageIndex=$pageIndex, docPage=$docPage")
             if (docPage < 0) return ""
 
             var page = activePages.get(docPage)
             var shouldClose = false
-            android.util.Log.d("ReflowDebug", "getPageText: activePage=${page != null}")
+            var shouldClose = false
             
             if (page == null) {
                 try {
                     val document = pdfDocument
-                    android.util.Log.d("ReflowDebug", "getPageText: pdfDocument=${document != null}")
                     if (document == null) return ""
                     page = document.openPage(docPage)
                     shouldClose = true
-                    android.util.Log.d("ReflowDebug", "getPageText: opened page successfully")
                 } catch (e: Exception) {
-                    android.util.Log.e("ReflowDebug", "getPageText: failed to open page", e)
                     return ""
                 }
             }
 
             try {
                 val textPage = page.openTextPage()
-                android.util.Log.d("ReflowDebug", "getPageText: textPage opened, charCount=${textPage.charCount}")
                 try {
                     val text = textPage.text
-                    android.util.Log.d("ReflowDebug", "getPageText: text length=${text.length}")
                     return text
                 } finally {
                     textPage.close()
                 }
             } catch (e: Exception) {
-                android.util.Log.e("ReflowDebug", "getPageText: text extraction failed", e)
                 return ""
             } finally {
                 if (shouldClose) page.close()

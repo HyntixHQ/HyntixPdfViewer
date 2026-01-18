@@ -76,6 +76,8 @@ val pdfView = HyntixPdfView(context)
 pdfView.load(file)
 ```
 
+> **Note:** For a complete sample application demonstrating how to use this library, please check [HyntixHQ/PDFManager](https://github.com/HyntixHQ/PDFManager).
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to contribute to this project.

@@ -959,7 +959,7 @@ class PDFView(context: Context, set: AttributeSet?) : RelativeLayout(context, se
         if (onErrorListener != null) {
             onErrorListener.onError(t)
         } else {
-            Log.e("PDFView", "load pdf error", t)
+            Log.e(TAG, "load pdf error", t)
         }
     }
 
@@ -1437,16 +1437,7 @@ class PDFView(context: Context, set: AttributeSet?) : RelativeLayout(context, se
         moveTo(state.offsetX, state.offsetY, animate)
     }
 
-    val zoomCentered: Boolean
-        get() = false // TODO: Not sure what this was in original code or if I missed it.
-    // Wait, original code usage in DragPinchManager:
-    // if (scaling || pdfView.zoomCentered) { // zoomCentered logic
-    // But DragPinchManager.java port from me doesn't have zoomCentered.
-    // I likely added it because I saw it somewhere or I'm confusing myself.
-    // Let me check PDFView.java again for 'zoomCentered'.
-    // `grep "zoomCentered" PDFView.java` would help.
-    // I'll assume it's NOT there and I hallucinated it in DragPinchManager or it was in a different version.
-    // In PDFView.java (read in step 443), I see zoomCenteredTo and zoomCenteredRelativeTo methods, but no boolean field `zoomCentered`.
+
 
     /** Use an asset file as the pdf source  */
     fun fromAsset(assetName: String): Configurator {
@@ -1480,6 +1471,10 @@ class PDFView(context: Context, set: AttributeSet?) : RelativeLayout(context, se
 
     private enum class State {
         DEFAULT, LOADED, SHOWN, ERROR
+    }
+
+    companion object {
+        private const val TAG = "PDFView"
     }
 
     inner class Configurator(private val documentSource: DocumentSource) {
@@ -1689,10 +1684,10 @@ class PDFView(context: Context, set: AttributeSet?) : RelativeLayout(context, se
             
             // Compute document hash for cache keys
             this@PDFView.documentHash = when (documentSource) {
-                is FileSource -> (documentSource as FileSource).file.absolutePath.hashCode().toString(16)
-                is UriSource -> (documentSource as UriSource).uri.toString().hashCode().toString(16)
-                is AssetSource -> (documentSource as AssetSource).assetName.hashCode().toString(16)
-                is ByteArraySource -> (documentSource as ByteArraySource).data.contentHashCode().toString(16)
+                is FileSource -> documentSource.file.absolutePath.hashCode().toString(16)
+                is UriSource -> documentSource.uri.toString().hashCode().toString(16)
+                is AssetSource -> documentSource.assetName.hashCode().toString(16)
+                is ByteArraySource -> documentSource.data.contentHashCode().toString(16)
                 else -> System.currentTimeMillis().toString(16)
             }
             

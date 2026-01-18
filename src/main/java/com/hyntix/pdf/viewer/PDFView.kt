@@ -1473,9 +1473,7 @@ class PDFView(context: Context, set: AttributeSet?) : RelativeLayout(context, se
         DEFAULT, LOADED, SHOWN, ERROR
     }
 
-    companion object {
-        private const val TAG = "PDFView"
-    }
+
 
     inner class Configurator(private val documentSource: DocumentSource) {
         private var pageNumbers: IntArray? = null

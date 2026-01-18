@@ -367,7 +367,6 @@ class PdfFile(
 
             var page = activePages.get(docPage)
             var shouldClose = false
-            var shouldClose = false
             
             if (page == null) {
                 try {

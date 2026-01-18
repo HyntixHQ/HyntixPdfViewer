@@ -20,3 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for various data sources: Assets, Files, URIs, Byte Arrays, Streams.
 - Comprehensive callback system for loading, rendering, page changes, and errors.
 - Text selection customization (colors).
+
+### Changed
+- Standardized JitPack build configuration with standalone Gradle wrapper.
+- Cleaned up debug logs and legacy TODOs.
+- Reduced library size through optimized resource handling.
+

@@ -45,26 +45,45 @@ A lightweight, efficient PDF viewer library for Android, built with Kotlin.
 - Compile SDK: 36
 - Java 21
 
-## Installation
+### Via JitPack (Recommended)
 
-Add the dependency to your module's `build.gradle.kts`.
+1. Add the JitPack repository to your root `settings.gradle.kts`:
 
-**Note:** This project depends on `KotlinPdfium`. You must clone it and add it to your project.
-
-```bash
-git clone https://github.com/HyntixHQ/KotlinPdfium.git
+```kotlin
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+        maven { url = uri("https://jitpack.io") }
+    }
+}
 ```
 
-Then in your `settings.gradle.kts`, include it:
+2. Add the dependency to your app level `build.gradle.kts`:
+
+```kotlin
+dependencies {
+    implementation("com.github.HyntixHQ:HyntixPdfViewer:1.0.0")
+}
+```
+
+### Manual Installation
+
+If you prefer to include the library as a local module:
+
+1. Clone `KotlinPdfium` and `HyntixPdfViewer` into your libs directory.
+2. In your `settings.gradle.kts`:
 ```kotlin
 include(":KotlinPdfium")
 project(":KotlinPdfium").projectDir = file("path/to/KotlinPdfium")
+include(":HyntixPdfViewer")
+project(":HyntixPdfViewer").projectDir = file("path/to/HyntixPdfViewer")
 ```
-
-And finally in your module's `build.gradle.kts`:
+3. In your app `build.gradle.kts`:
 ```kotlin
 dependencies {
-    implementation(project(":KotlinPdfium"))
+    implementation(project(":HyntixPdfViewer"))
 }
 ```
 

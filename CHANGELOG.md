@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-01-21
+
+### Fixed
+- **Carousel Page Gestures**: Improved page-by-page mode with carousel-like swipe behavior - any directional swipe now smoothly transitions to next/previous page.
+- **Zoom Page Change Prevention**: Fixed issue where pinch-to-zoom and double-tap zoom could inadvertently trigger page changes.
+- **Page Display in Horizontal Mode**: Pages now display one at a time and centered when using horizontal scroll mode.
+
+### Changed
+- Scroll direction tracking now uses raw offset before constraints for better carousel gesture detection.
+- Added `isZoomGesture` flag to properly track active zoom gestures.
+- Added `resetScrollDir()` method for clearing scroll direction state.
+
 ## [1.0.0] - 2026-01-17
 
 ### Added

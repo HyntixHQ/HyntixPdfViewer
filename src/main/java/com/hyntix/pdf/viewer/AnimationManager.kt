@@ -153,12 +153,15 @@ internal class AnimationManager(private val pdfView: PDFView) {
 
         override fun onAnimationCancel(animation: Animator) {
             pdfView.loadPages()
+            pdfView.isZoomGesture = false
+            pdfView.resetScrollDir()  // Prevent page change
             hideHandle()
         }
 
         override fun onAnimationEnd(animation: Animator) {
             pdfView.loadPages()
-            pdfView.performPageSnap()
+            pdfView.isZoomGesture = false
+            pdfView.resetScrollDir()  // Prevent page change after zoom
             hideHandle()
         }
     }

@@ -143,6 +143,7 @@ internal class DragPinchManager(
         if (!pdfView.isDoubletapEnabled) {
             return false
         }
+        pdfView.isZoomGesture = true  // Mark as zooming to prevent scrollDir updates
         // Multi-level zoom cycle: 1x → 2x → 5x → 10x → 1x
         when {
             pdfView.zoom < pdfView.midZoom -> pdfView.zoomWithAnimation(e.x, e.y, pdfView.midZoom)
@@ -282,6 +283,7 @@ internal class DragPinchManager(
 
     override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
         scaling = true
+        pdfView.isZoomGesture = true  // Prevent scrollDir updates during pinch zoom
         return true
     }
 
@@ -289,6 +291,8 @@ internal class DragPinchManager(
         pdfView.loadPages()
         hideHandle()
         scaling = false
+        pdfView.isZoomGesture = false
+        pdfView.resetScrollDir()  // Clear scroll direction to prevent page change
     }
 
     private var isDragSelection = false

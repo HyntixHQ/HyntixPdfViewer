@@ -76,6 +76,11 @@ class PDFView(context: Context, set: AttributeSet?) : RelativeLayout(context, se
     }
 
     private var scrollDir = ScrollDir.NONE
+    
+    /** Reset scroll direction to NONE - called after zoom to prevent page changes */
+    fun resetScrollDir() {
+        scrollDir = ScrollDir.NONE
+    }
 
     /** Rendered parts go to the cache manager  */
     internal var cacheManager: CacheManager? = null
@@ -1002,6 +1007,25 @@ class PDFView(context: Context, set: AttributeSet?) : RelativeLayout(context, se
     fun moveTo(offsetX: Float, offsetY: Float, moveHandle: Boolean) {
         var offsetX = offsetX
         var offsetY = offsetY
+        
+        // Track scroll direction from raw offset BEFORE constraints (for carousel behavior)
+        // Only update scrollDir when NOT zooming to prevent zoom from triggering page changes
+        if (!isZooming) {
+            if (isSwipeVertical) {
+                scrollDir = when {
+                    offsetY < currentYOffset -> ScrollDir.END
+                    offsetY > currentYOffset -> ScrollDir.START
+                    else -> scrollDir // Keep previous direction if no change
+                }
+            } else {
+                scrollDir = when {
+                    offsetX < currentXOffset -> ScrollDir.END
+                    offsetX > currentXOffset -> ScrollDir.START
+                    else -> scrollDir // Keep previous direction if no change
+                }
+            }
+        }
+        
         if (isSwipeVertical) {
             // Check X offset
             val scaledPageWidth = toCurrentScale(pdfFile!!.maxPageWidth)
@@ -1026,13 +1050,6 @@ class PDFView(context: Context, set: AttributeSet?) : RelativeLayout(context, se
                     offsetY = -contentHeight + height
                 }
             }
-            scrollDir = if (offsetY < currentYOffset) {
-                ScrollDir.END
-            } else if (offsetY > currentYOffset) {
-                ScrollDir.START
-            } else {
-                ScrollDir.NONE
-            }
         } else {
             // Check Y offset
             val scaledPageHeight = toCurrentScale(pdfFile!!.maxPageHeight)
@@ -1056,13 +1073,6 @@ class PDFView(context: Context, set: AttributeSet?) : RelativeLayout(context, se
                 } else if (offsetX + contentWidth < width) { // right visible
                     offsetX = -contentWidth + width
                 }
-            }
-            scrollDir = if (offsetX < currentXOffset) {
-                ScrollDir.END
-            } else if (offsetX > currentXOffset) {
-                ScrollDir.START
-            } else {
-                ScrollDir.NONE
             }
         }
         currentXOffset = offsetX
@@ -1098,23 +1108,35 @@ class PDFView(context: Context, set: AttributeSet?) : RelativeLayout(context, se
     }
 
     /**
-     * Animate to the nearest snapping position for the current SnapPolicy
+     * Animate to the nearest snapping position for the current SnapPolicy.
+     * Uses carousel behavior: any scroll in a direction triggers snap to next/previous page.
      */
     fun performPageSnap() {
         if (!isPageSnap || pdfFile == null || pdfFile!!.pagesCount == 0) {
             return
         }
-        val centerPage = findFocusPage(currentXOffset, currentYOffset)
-        val edge = findSnapEdge(centerPage)
-        if (edge == SnapEdge.NONE) {
+        
+        // Carousel behavior: use scroll direction to determine target page
+        val targetPage = when (scrollDir) {
+            ScrollDir.END -> minOf(currentPage + 1, pdfFile!!.pagesCount - 1)
+            ScrollDir.START -> maxOf(currentPage - 1, 0)
+            ScrollDir.NONE -> currentPage // No scroll, snap to current page
+        }
+        
+        val edge = findSnapEdge(targetPage)
+        if (edge == SnapEdge.NONE && targetPage == currentPage) {
             return
         }
-        val offset = snapOffsetForPage(centerPage, edge)
+        
+        val offset = snapOffsetForPage(targetPage, if (edge == SnapEdge.NONE) SnapEdge.CENTER else edge)
         if (isSwipeVertical) {
             animationManager!!.startYAnimation(currentYOffset, -offset)
         } else {
             animationManager!!.startXAnimation(currentXOffset, -offset)
         }
+        
+        // Reset scroll direction after snap
+        scrollDir = ScrollDir.NONE
     }
 
     /**
@@ -1262,8 +1284,11 @@ class PDFView(context: Context, set: AttributeSet?) : RelativeLayout(context, se
         return size * zoom
     }
 
+    /** Flag set during zoom gestures (pinch/double-tap) to prevent scrollDir updates */
+    var isZoomGesture = false
+    
     val isZooming: Boolean
-        get() = zoom != minZoom
+        get() = isZoomGesture || zoom != minZoom
 
     private fun setDefaultPage(defaultPage: Int) {
         this.defaultPage = defaultPage

@@ -95,8 +95,26 @@ internal class DragPinchManager(
         android.util.Log.d("PdfViewerDebug", "Link Check: Tap($x, $y) -> Mapped($mappedX, $mappedY) -> Page $page Offset($pageX, $pageY)")
 
         val links = pdfFile.getPageLinks(page)
-        android.util.Log.d("PdfViewerDebug", "Page $page has ${links.size} links")
         
+        // 1. Try native detection first - more accurate for all link types
+        val point = pdfFile.mapDeviceToPage(
+            page, pageX, pageY,
+            pageSize.width.toInt(), pageSize.height.toInt(),
+            mappedX.toInt(), mappedY.toInt()
+        )
+        val nativeLink = pdfFile.getLinkAt(page, point[0], point[1])
+        if (nativeLink != null) {
+            android.util.Log.d("PdfViewerDebug", "HIT Native Link: $nativeLink")
+            val nativeMappedRect = pdfFile.mapRectToDevice(
+                page, pageX, pageY,
+                pageSize.width.toInt(), pageSize.height.toInt(),
+                nativeLink.rect
+            )
+            pdfView.callbacks.callLinkHandler(LinkTapEvent(x, y, mappedX, mappedY, nativeMappedRect, nativeLink))
+            return true
+        }
+
+        // 2. Fallback to manual annotation search (useful if getLinkAt misses something)
         for (link in links) {
             val mapped = pdfFile.mapRectToDevice(
                 page, pageX, pageY,
@@ -104,7 +122,26 @@ internal class DragPinchManager(
                 link.rect
             )
             if (mapped.contains(mappedX, mappedY)) {
-                android.util.Log.d("PdfViewerDebug", "HIT Link: $link")
+                android.util.Log.d("PdfViewerDebug", "HIT Manual Link: $link")
+                pdfView.callbacks.callLinkHandler(LinkTapEvent(x, y, mappedX, mappedY, mapped, link))
+                return true
+            }
+        }
+
+        // 3. Fallback to Text-Based Web Links (e.g. plain text URLs)
+        val webLinks = pdfFile.getWebLinksForPage(page)
+        for (link in webLinks) {
+            val mapped = pdfFile.mapRectToDevice(
+                page, pageX, pageY,
+                pageSize.width.toInt(), pageSize.height.toInt(),
+                link.rect
+            )
+            // Use a slightly larger touch area for text links as they might be small
+            val touchArea = RectF(mapped)
+            touchArea.inset(-10f, -10f) // Add 10px buffer
+            
+            if (touchArea.contains(mappedX, mappedY)) {
+                android.util.Log.d("PdfViewerDebug", "HIT Text Web Link: $link")
                 pdfView.callbacks.callLinkHandler(LinkTapEvent(x, y, mappedX, mappedY, mapped, link))
                 return true
             }
@@ -160,6 +197,8 @@ internal class DragPinchManager(
 
     override fun onDown(e: MotionEvent): Boolean {
         animationManager.stopFling()
+        pdfView.setScrollStart(pdfView.currentXOffset, pdfView.currentYOffset)
+        pdfView.resetScrollDir()
         return true
     }
 

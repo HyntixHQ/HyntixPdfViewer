@@ -91,5 +91,7 @@ object Constants {
         const val MAXIMUM_ZOOM = 10f
         const val MINIMUM_ZOOM = 1f
     }
+
+    const val GESTURE_THRESHOLD_DP = 20
 }
 

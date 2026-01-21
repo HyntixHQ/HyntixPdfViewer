@@ -312,8 +312,38 @@ class PdfFile(
         }
     }
 
-    fun searchPage(pageIndex: Int, query: String): List<RectF> {
-        // Synchronize with lock to prevent concurrent PDFium access from rendering thread
+    fun getLinkAt(pageIndex: Int, x: Double, y: Double): com.hyntix.pdfium.PdfLink? {
+        val docPage = documentPage(pageIndex)
+        if (docPage < 0) return null
+        
+        var page = activePages.get(docPage)
+        var shouldClose = false
+        if (page == null) {
+            try {
+                val document = pdfDocument ?: return null
+                page = document.openPage(docPage)
+                shouldClose = true
+            } catch (e: Exception) {
+                return null
+            }
+        }
+        
+        try {
+            return page.getLinkAt(x, y)
+        } finally {
+            if (shouldClose) page.close()
+        }
+    }
+
+
+
+
+    /**
+     * Get all text-based web links on the page (plain text URLs).
+     * This detects URLs that are not explicit link annotations.
+     */
+    fun getWebLinksForPage(pageIndex: Int): List<com.hyntix.pdfium.PdfLink> {
+        // Synchronize with lock to prevent concurrent PDFium access
         synchronized(lock) {
             val docPage = documentPage(pageIndex)
             if (docPage < 0) return java.util.Collections.emptyList()
@@ -330,166 +360,44 @@ class PdfFile(
                 }
             }
 
-            val results = ArrayList<RectF>()
             try {
                 val textPage = page.openTextPage()
                 try {
-                    // Early exit: skip pages with no text content
-                    if (textPage.charCount == 0) {
-                        return java.util.Collections.emptyList()
-                    }
-                    
-                    val matches = textPage.search(query, matchCase = false, matchWholeWord = false)
-                    for (match in matches) {
-                        val rects = textPage.getTextRects(match.startIndex, match.count)
-                        // Make defensive copies to avoid native memory issues after lock is released
-                        results.addAll(rects.map { RectF(it) })
-                    }
-                } finally {
-                    textPage.close()
-                }
-            } catch (e: Exception) {
-                // Ignore search errors
-            } finally {
-                if (shouldClose) page.close()
-            }
-            return results
-        }
-    }
-
-    /**
-     * Get the full text content of a page for Reflow Mode.
-     */
-    fun getPageText(pageIndex: Int): String {
-        synchronized(lock) {
-            val docPage = documentPage(pageIndex)
-            if (docPage < 0) return ""
-
-            var page = activePages.get(docPage)
-            var shouldClose = false
-            
-            if (page == null) {
-                try {
-                    val document = pdfDocument
-                    if (document == null) return ""
-                    page = document.openPage(docPage)
-                    shouldClose = true
-                } catch (e: Exception) {
-                    return ""
-                }
-            }
-
-            try {
-                val textPage = page.openTextPage()
-                try {
-                    val text = textPage.text
-                    return text
-                } finally {
-                    textPage.close()
-                }
-            } catch (e: Exception) {
-                return ""
-            } finally {
-                if (shouldClose) page.close()
-            }
-        }
-    }
-
-    /**
-     * Check if the PDF has any extractable text.
-     * Samples the first, middle, and last pages for efficiency.
-     */
-    fun hasAnyText(): Boolean {
-        synchronized(lock) {
-            val pagesToCheck = listOf(0, pagesCount / 2, pagesCount - 1).distinct().filter { it in 0 until pagesCount }
-            for (pageIndex in pagesToCheck) {
-                val docPage = documentPage(pageIndex)
-                if (docPage < 0) continue
-                
-                var page = activePages.get(docPage)
-                var shouldClose = false
-                if (page == null) {
+                    val webLinks = textPage.loadWebLinks()
                     try {
-                        val document = pdfDocument ?: continue
-                        page = document.openPage(docPage)
-                        shouldClose = true
-                    } catch (e: Exception) {
-                        continue
-                    }
-                }
-                
-                try {
-                    val textPage = page.openTextPage()
-                    try {
-                        if (textPage.charCount > 0) return true
+                        val count = webLinks.count
+                        val result = java.util.ArrayList<com.hyntix.pdfium.PdfLink>(count)
+                        
+                        for (i in 0 until count) {
+                            val url = webLinks.getURL(i)
+                            val rects: List<RectF> = webLinks.getRects(i, textPage)
+                            
+                            if (rects.isNotEmpty()) {
+                                val fullRect = RectF(rects[0])
+                                for (j in 1 until rects.size) {
+                                    fullRect.union(rects[j])
+                                }
+                                result.add(com.hyntix.pdfium.PdfLink(fullRect, -1, url))
+                            }
+                        }
+                        return result
                     } finally {
-                        textPage.close()
+                        webLinks.close()
                     }
-                } catch (e: Exception) {
-                    // Ignore
                 } finally {
-                    if (shouldClose) page.close()
+                    textPage.close()
                 }
+            } catch (e: Exception) {
+                return java.util.Collections.emptyList()
+            } finally {
+                if (shouldClose) page.close()
             }
-            return false
         }
     }
 
-    
-    /**
-     * Merge adjacent or overlapping rectangles that are on the same baseline.
-     * This handles fragmented text runs (e.g., "fi" and "nd" as separate rects for "find").
-     * 
-     * Rects are considered on the same baseline if their vertical centers are within a tolerance.
-     * 
-     * IMPORTANT: This function makes defensive copies of all RectF objects to avoid
-     * accessing native memory that may become invalid.
-     */
-    private fun mergeAdjacentRects(rects: List<RectF>): List<RectF> {
-        if (rects.isEmpty()) return emptyList()
-        if (rects.size == 1) return listOf(RectF(rects[0])) // Defensive copy
-        
-        // Make defensive copies of all rects to avoid native memory issues
-        val copies = rects.map { RectF(it) }
-        
-        // Sort by Y (baseline) then by X (horizontal position)
-        val sorted = copies.sortedWith(compareBy({ it.centerY() }, { it.left }))
-        
-        val merged = ArrayList<RectF>()
-        var current = RectF(sorted[0])
-        
-        for (i in 1 until sorted.size) {
-            val next = sorted[i]
-            
-            // Check if on same baseline (vertical tolerance based on rect height)
-            val height = current.height()
-            if (height <= 0) {
-                merged.add(current)
-                current = RectF(next)
-                continue
-            }
-            
-            val tolerance = height * 0.5f
-            val sameBaseline = kotlin.math.abs(current.centerY() - next.centerY()) < tolerance
-            
-            // Check if horizontally adjacent or overlapping (with small gap tolerance for ligatures)
-            val gap = next.left - current.right
-            val gapTolerance = height * 0.3f // Allow small gaps between glyphs
-            val horizontallyClose = gap < gapTolerance && gap > -current.width()
-            
-            if (sameBaseline && horizontallyClose) {
-                // Merge: extend current rect to include next
-                current.union(next)
-            } else {
-                // Not adjacent, save current and start new
-                merged.add(current)
-                current = RectF(next)
-            }
-        }
-        merged.add(current) // Don't forget the last one
-        
-        return merged
-    }
+
+
+
 
     fun getCharIndexAt(pageIndex: Int, x: Float, y: Float): Int {
         val docPage = documentPage(pageIndex)
@@ -547,6 +455,36 @@ class PdfFile(
             }
         } catch (e: Exception) {
             return java.util.Collections.emptyList()
+        } finally {
+            if (shouldClose) page.close()
+        }
+    }
+    
+    fun getPageText(pageIndex: Int): String {
+        val docPage = documentPage(pageIndex)
+        if (docPage < 0) return ""
+
+        var page = activePages.get(docPage)
+        var shouldClose = false
+        if (page == null) {
+            try {
+                val document = pdfDocument ?: return ""
+                page = document.openPage(docPage)
+                shouldClose = true
+            } catch (e: Exception) {
+                return ""
+            }
+        }
+
+        try {
+            val textPage = page.openTextPage()
+            try {
+                return textPage.text
+            } finally {
+                textPage.close()
+            }
+        } catch (e: Exception) {
+            return ""
         } finally {
             if (shouldClose) page.close()
         }
@@ -645,6 +583,48 @@ class PdfFile(
             }
             this._pdfDocument = null
             this.originalUserPages = null
+        }
+    }
+    
+    /**
+     * Search for text in a specific page.
+     * 
+     * @param pageIndex The page index to search in
+     * @param query The text to search for
+     * @return List of RectF representing the bounding boxes of matches
+     */
+    fun searchPage(pageIndex: Int, query: String): List<RectF> {
+        val docPage = documentPage(pageIndex)
+        if (docPage < 0) return emptyList()
+
+        var page = activePages.get(docPage)
+        var shouldClose = false
+        if (page == null) {
+            try {
+                val document = pdfDocument ?: return emptyList()
+                page = document.openPage(docPage)
+                shouldClose = true
+            } catch (e: Exception) {
+                return emptyList()
+            }
+        }
+
+        try {
+            val textPage = page.openTextPage()
+            try {
+                val matches = textPage.search(query, matchCase = false, matchWholeWord = false)
+                val rects = ArrayList<RectF>()
+                for (match in matches) {
+                    rects.addAll(textPage.getTextRects(match.startIndex, match.count))
+                }
+                return rects
+            } finally {
+                textPage.close()
+            }
+        } catch (e: Exception) {
+            return emptyList()
+        } finally {
+            if (shouldClose) page.close()
         }
     }
 

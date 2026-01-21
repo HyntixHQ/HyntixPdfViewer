@@ -1,5 +1,7 @@
 package com.hyntix.pdf.viewer
 
+import kotlin.math.abs
+
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -77,6 +79,16 @@ class PDFView(context: Context, set: AttributeSet?) : RelativeLayout(context, se
 
     private var scrollDir = ScrollDir.NONE
     
+    /** Tracking for gesture distance to avoid accidental page turns during taps */
+    private var scrollStartX = 0f
+    private var scrollStartY = 0f
+
+    /** Set the starting offsets of a scroll gesture */
+    fun setScrollStart(x: Float, y: Float) {
+        scrollStartX = x
+        scrollStartY = y
+    }
+
     /** Reset scroll direction to NONE - called after zoom to prevent page changes */
     fun resetScrollDir() {
         scrollDir = ScrollDir.NONE
@@ -1116,11 +1128,22 @@ class PDFView(context: Context, set: AttributeSet?) : RelativeLayout(context, se
             return
         }
         
+        val deltaX = abs(currentXOffset - scrollStartX)
+        val deltaY = abs(currentYOffset - scrollStartY)
+        val threshold = getPixels(Constants.GESTURE_THRESHOLD_DP)
+        
+        // Only trigger carousel page change if move distance is above threshold
+        val isSignificantMove = (isSwipeVertical && deltaY > threshold) || (!isSwipeVertical && deltaX > threshold)
+        
         // Carousel behavior: use scroll direction to determine target page
-        val targetPage = when (scrollDir) {
-            ScrollDir.END -> minOf(currentPage + 1, pdfFile!!.pagesCount - 1)
-            ScrollDir.START -> maxOf(currentPage - 1, 0)
-            ScrollDir.NONE -> currentPage // No scroll, snap to current page
+        val targetPage = if (isSignificantMove) {
+            when (scrollDir) {
+                ScrollDir.END -> minOf(currentPage + 1, pdfFile!!.pagesCount - 1)
+                ScrollDir.START -> maxOf(currentPage - 1, 0)
+                ScrollDir.NONE -> currentPage
+            }
+        } else {
+            currentPage // Distance too small (possible tap jitter), snap back to center
         }
         
         val edge = findSnapEdge(targetPage)
@@ -1137,6 +1160,12 @@ class PDFView(context: Context, set: AttributeSet?) : RelativeLayout(context, se
         
         // Reset scroll direction after snap
         scrollDir = ScrollDir.NONE
+        // Mark as having snapped to avoid double triggers
+        setScrollStart(currentXOffset, currentYOffset)
+    }
+
+    private fun getPixels(dp: Int): Int {
+        return (dp * context.resources.displayMetrics.density).toInt()
     }
 
     /**

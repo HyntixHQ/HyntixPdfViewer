@@ -52,6 +52,5 @@ publishing {
 
 dependencies {
     implementation(libs.androidx.core.ktx)
-    // api("com.github.HyntixHQ:KotlinPdfium:1.0.1")
-    api(project(":KotlinPdfium"))
+    api("com.github.HyntixHQ:KotlinPdfium:v1.0.2")
 }

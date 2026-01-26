@@ -64,7 +64,7 @@ dependencyResolutionManagement {
 
 ```kotlin
 dependencies {
-    implementation("com.github.HyntixHQ:HyntixPdfViewer:1.0.2")
+    implementation("com.github.HyntixHQ:HyntixPdfViewer:1.0.3")
 }
 ```
 
@@ -103,4 +103,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to contribute to this 
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GNU Affero General Public License v3.0 - see the [LICENSE](LICENSE) file for details.

@@ -67,7 +67,7 @@ dependencies {
 <<<<<<< HEAD
     implementation("com.github.HyntixHQ:HyntixPdfViewer:1.0.3")
 =======
-    implementation("com.github.HyntixHQ:HyntixPdfViewer:1.0.4")
+    implementation("com.github.HyntixHQ:HyntixPdfViewer:1.0.5")
 >>>>>>> 0884046 (chore: bump version to 1.0.4 and update dependencies)
 }
 ```

@@ -64,7 +64,11 @@ dependencyResolutionManagement {
 
 ```kotlin
 dependencies {
+<<<<<<< HEAD
     implementation("com.github.HyntixHQ:HyntixPdfViewer:1.0.3")
+=======
+    implementation("com.github.HyntixHQ:HyntixPdfViewer:1.0.4")
+>>>>>>> 0884046 (chore: bump version to 1.0.4 and update dependencies)
 }
 ```
 

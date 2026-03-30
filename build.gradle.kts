@@ -41,7 +41,7 @@ publishing {
         register<MavenPublication>("release") {
             groupId = "com.github.HyntixHQ"
             artifactId = "HyntixPdfViewer"
-            version = "1.0.3"
+            version = "1.0.4"
 
             afterEvaluate {
                 from(components["release"])
@@ -52,5 +52,6 @@ publishing {
 
 dependencies {
     implementation(libs.androidx.core.ktx)
-    api("com.github.HyntixHQ:KotlinPdfium:1.0.3")
+    api(libs.kotlinpdfium)
+    // api(project(":KotlinPdfium"))
 }
